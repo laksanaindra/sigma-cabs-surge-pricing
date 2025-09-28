@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from xgboost import XGBClassifier
 import joblib
+from sklearn.preprocessing import LabelEncoder
 
 # ---------------------------
 # Sidebar - upload file
@@ -22,19 +23,35 @@ model = load_model()
 # Main app
 # ---------------------------
 st.title("🚕 Surge Pricing Prediction with XGBoost")
-st.write("Aplikasi ini memprediksi **Surge Pricing Type** berdasarkan fitur customer & trip.")
+st.write("Prediksi **Surge Pricing Type** berdasarkan fitur customer & trip.")
+
+# Fitur yang dipakai model saat training
+features = [
+    "Trip_Distance", "Type_of_Cab", "Customer_Since_Months",
+    "Life_Style_Index", "Confidence_Life_Style_Index", "Destination_Type",
+    "Customer_Rating", "Cancellation_Last_1Month", "Var1", "Var2", "Var3", "Gender"
+]
+
+# Kolom kategori
+cat_cols = ["Type_of_Cab", "Confidence_Life_Style_Index", "Destination_Type", "Gender"]
 
 if uploaded_file is not None:
     df_test = pd.read_csv(uploaded_file)
     st.subheader("Data Preview")
     st.write(df_test.head())
 
-    # ---------------------------
-    # Preprocessing
-    # ---------------------------
-    # Hapus kolom ID jika ada
+    # Hapus Trip_ID jika ada
     if "Trip_ID" in df_test.columns:
         df_test = df_test.drop(columns=["Trip_ID"])
+
+    # Ambil hanya fitur yang dipakai model
+    df_test = df_test[features]
+
+    # Convert kolom kategori ke numeric
+    for col in cat_cols:
+        if col in df_test.columns:
+            le = LabelEncoder()
+            df_test[col] = le.fit_transform(df_test[col].astype(str))
 
     # ---------------------------
     # Prediksi
@@ -45,7 +62,7 @@ if uploaded_file is not None:
     st.subheader("Prediction Results")
     st.write(df_test[["Predicted_Surge_Pricing_Type"]].value_counts())
 
-    # Tombol download hasil prediksi
+    # Tombol download
     st.download_button(
         label="Download Predictions",
         data=df_test.to_csv(index=False).encode("utf-8"),
@@ -54,16 +71,10 @@ if uploaded_file is not None:
     )
 
     # ---------------------------
-    # Feature Importance (XGBoost built-in)
+    # Feature Importance
     # ---------------------------
-    st.subheader("Feature Importance")
-    # Pastikan jumlah kolom sama seperti saat training
-    feature_names = [
-        "Trip_Distance", "Type_of_Cab", "Customer_Since_Months",
-        "Life_Style_Index", "Confidence_Life_Style_Index", "Destination_Type",
-        "Customer_Rating", "Cancellation_Last_1Month", "Var1", "Var2", "Var3", "Gender"
-    ]
-    feature_importance = pd.Series(model.feature_importances_, index=feature_names).sort_values(ascending=True)
+    st.subheader("Feature Importance (XGBoost built-in)")
+    feature_importance = pd.Series(model.feature_importances_, index=features).sort_values(ascending=True)
     st.bar_chart(feature_importance)
 
 else:
