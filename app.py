@@ -4,6 +4,7 @@ import shap
 import matplotlib.pyplot as plt
 from xgboost import XGBClassifier
 import joblib
+from sklearn.preprocessing import LabelEncoder
 
 # ---------------------------
 # Sidebar - upload file
@@ -31,11 +32,25 @@ if uploaded_file is not None:
     st.subheader("Data Preview")
     st.write(df_test.head())
 
-    # Hapus kolom non-numerik / ID
+    # ---------------------------
+    # Preprocessing
+    # ---------------------------
+    # Hapus kolom ID
     if "Trip_ID" in df_test.columns:
         df_test = df_test.drop(columns=["Trip_ID"])
 
+    # Kolom kategorikal
+    cat_cols = ["Type_of_Cab", "Confidence_Life_Style_Index", "Destination_Type", "Gender"]
+
+    # Label Encoding untuk setiap kolom kategori
+    for col in cat_cols:
+        if col in df_test.columns:
+            le = LabelEncoder()
+            df_test[col] = le.fit_transform(df_test[col].astype(str))
+
+    # ---------------------------
     # Prediksi
+    # ---------------------------
     preds = model.predict(df_test)
     df_test["Predicted_Surge_Pricing_Type"] = preds + 1  # dari 0-2 jadi 1-3
 
@@ -50,7 +65,9 @@ if uploaded_file is not None:
         mime="text/csv",
     )
 
+    # ---------------------------
     # SHAP explainability
+    # ---------------------------
     st.subheader("Feature Importance (SHAP)")
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(df_test)
